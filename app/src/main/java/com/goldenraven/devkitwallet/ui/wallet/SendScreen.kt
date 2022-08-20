@@ -66,6 +66,7 @@ internal fun SendScreen(
 
     val sendAll: MutableState<Boolean> = remember { mutableStateOf(false) }
     val rbfEnabled: MutableState<Boolean> = remember { mutableStateOf(false) }
+    val data: MutableState<String> = remember { mutableStateOf("") }
 
     val bottomSheetScaffoldState = rememberBottomSheetScaffoldState(
         bottomSheetState = rememberBottomSheetState(initialValue = BottomSheetValue.Collapsed)
@@ -98,7 +99,7 @@ internal fun SendScreen(
                         start.linkTo(parent.start)
                         end.linkTo(parent.end)
                     }
-                    .padding(top = 70.dp)
+                    .padding(top = 20.dp)
             )
 
             Column(
@@ -118,10 +119,12 @@ internal fun SendScreen(
                     transactionType = if (sendAll.value) TransactionType.SEND_ALL else TransactionType.DEFAULT
                 )
                 TransactionFeeInput(feeRate = feeRate)
+                TransactionDataInput(data = data)
                 MoreOptions(coroutineScope = coroutineScope, bottomSheetScaffoldState = bottomSheetScaffoldState)
                 Dialog(
                     recipientList = recipientList,
                     feeRate = feeRate,
+                    data = data,
                     showDialog = showDialog,
                     setShowDialog = setShowDialog,
                     transactionType = if (sendAll.value) TransactionType.SEND_ALL else TransactionType.DEFAULT,
@@ -439,9 +442,37 @@ fun MoreOptions(coroutineScope: CoroutineScope, bottomSheetScaffoldState: Bottom
 }
 
 @Composable
+private fun TransactionDataInput(data: MutableState<String>) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+
+        OutlinedTextField(
+            modifier = Modifier
+                .padding(vertical = 8.dp)
+                .fillMaxWidth(0.9f),
+            value = data.value,
+            onValueChange = { data.value = it; },
+            singleLine = true,
+            textStyle = TextStyle(fontFamily = firaMono, color = DevkitWalletColors.snow1),
+            label = {
+                Text(
+                    text = "Message",
+                    color = DevkitWalletColors.snow1,
+                )
+            },
+            colors = TextFieldDefaults.outlinedTextFieldColors(
+                focusedBorderColor = DevkitWalletColors.auroraGreen,
+                unfocusedBorderColor = DevkitWalletColors.snow1,
+                cursorColor = DevkitWalletColors.auroraGreen,
+            ),
+        )
+    }
+}
+
+@Composable
 fun Dialog(
     recipientList: MutableList<Recipient>,
     feeRate: MutableState<String>,
+    data: MutableState<String>,
     showDialog: Boolean,
     setShowDialog: (Boolean) -> Unit,
     transactionType: TransactionType,
@@ -478,6 +509,7 @@ fun Dialog(
                                 feeRate = feeRate.value.toFloat(),
                                 transactionType = transactionType,
                                 rbfEnabled = rbfEnabled,
+                                data = data.value,
                             )
                             setShowDialog(false)
                         }
@@ -510,13 +542,14 @@ private fun broadcastTransaction(
     feeRate: Float = 1F,
     transactionType: TransactionType,
     rbfEnabled: Boolean,
+    data: String,
 ) {
     Log.i(TAG, "Attempting to broadcast transaction with inputs: recipient, amount: $recipientList, fee rate: $feeRate")
     try {
         // create, sign, and broadcast
         val psbt: PartiallySignedBitcoinTransaction = when (transactionType) {
-            TransactionType.DEFAULT -> Wallet.createTransaction(recipientList, feeRate, rbfEnabled)
-            TransactionType.SEND_ALL -> Wallet.createSendAllTransaction(recipientList[0].address, feeRate, rbfEnabled)
+            TransactionType.DEFAULT -> Wallet.createTransaction(recipientList, feeRate, rbfEnabled, data)
+            TransactionType.SEND_ALL -> Wallet.createSendAllTransaction(recipientList[0].address, feeRate, rbfEnabled, data)
         }
         Wallet.sign(psbt)
         val txid: String = Wallet.broadcast(psbt)

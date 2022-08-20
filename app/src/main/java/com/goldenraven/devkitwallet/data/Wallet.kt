@@ -100,7 +100,8 @@ object Wallet {
     fun createTransaction(
         recipientList: MutableList<Recipient>,
         feeRate: Float,
-        enableRBF: Boolean
+        enableRBF: Boolean,
+        message: String
     ): PartiallySignedBitcoinTransaction {
         // technique 1 for adding a list of recipients to the TxBuilder
         // var txBuilder = TxBuilder()
@@ -116,13 +117,18 @@ object Wallet {
         if (enableRBF) {
             txBuilder = txBuilder.enableRbf()
         }
+        if (message.isNotEmpty()) {
+            val byteArray = message.toByteArray()
+            txBuilder = txBuilder.addData(byteArray.map { it.toUByte() });
+        }
         return txBuilder.feeRate(feeRate).finish(wallet)
     }
 
     fun createSendAllTransaction(
         recipient: String,
         feeRate: Float,
-        enableRBF: Boolean
+        enableRBF: Boolean,
+        message: String,
     ): PartiallySignedBitcoinTransaction {
         var txBuilder = TxBuilder()
             .drainWallet()
@@ -131,6 +137,11 @@ object Wallet {
 
         if (enableRBF) {
             txBuilder = txBuilder.enableRbf()
+        }
+
+        if (message.isNotEmpty()) {
+            val byteArray = message.toByteArray()
+            txBuilder = txBuilder.addData(byteArray.map { it.toUByte() });
         }
         return txBuilder.finish(wallet)
     }
